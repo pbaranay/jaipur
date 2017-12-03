@@ -1,0 +1,4 @@
+attrs==17.2.0
+Automat==0.6.0
+multiset==2.0.2
+six==1.10.0
