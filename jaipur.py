@@ -27,7 +27,7 @@ class Player:
     @property
     def cards_in_hand(self):
         # Camels are not technically in your hand and don't count against the hand limit.
-        return len([card for card in self.hand if card.type != CardType.CAMEL])
+        return sum(self.hand.get(card_type, default=0) for card_type in CardType if card_type != CardType.CAMEL)
 
     @property
     def points(self):
@@ -44,12 +44,6 @@ class CardType(enum.Enum):
     SILVER = "Silver"
     GOLD = "Gold"
     DIAMONDS = "Diamonds"
-
-
-# frozen=True
-@attrs(hash=True)
-class Card:
-    type = attrib(validator=validators.in_(CardType))
 
 
 # frozen=True
@@ -127,7 +121,7 @@ class StandardDeck(Deck):
             CardType.GOLD: 6,
             CardType.DIAMONDS: 6,
         }
-        args = [Card(type=k) for k, v in cards.items() for _ in range(v)]
+        args = [card_type for card_type, num in cards.items() for _ in range(num)]
         super().__init__(args)
 
 
@@ -182,7 +176,7 @@ class JaipurGame:
 
         # Deal 3 camels to the play area.
         for _ in range(3):
-            i = self.deck.index(Card(type=CardType.CAMEL))
+            i = self.deck.index(CardType.CAMEL)
             camel = self.deck.pop(i)
             self.play_area.add(camel)
 
