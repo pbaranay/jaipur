@@ -136,6 +136,10 @@ class ActionType(enum.Enum):
     SELL = "Sell Cards"
 
 
+class IllegalPlayError(Exception):
+    """A player tried to take an illegal action."""
+
+
 @attrs
 class JaipurGame:
     player1 = attrib(default=Factory(lambda: Player(name='Player 1')))
@@ -214,7 +218,7 @@ class JaipurGame:
         if action_type == ActionType.TAKE_CAMELS:
             num_camels = self.play_area[CardType.CAMEL]
             if not num_camels:
-                raise  # TODO: Consistent exception
+                raise IllegalPlayError("There are no camels to take.")
             self.play_area[CardType.CAMEL] = 0
             player.hand[CardType.CAMEL] += num_camels
         elif action_type == ActionType.TAKE_SINGLE:
@@ -223,24 +227,24 @@ class JaipurGame:
                 self.play_area[card_type_to_take] -= 1
                 player.hand[card_type_to_take] += 1
             else:
-                raise
+                raise IllegalPlayError("There is no {} to take.".format(card_type_to_take))
         elif action_type == ActionType.TAKE_MANY:
             card_types_to_take, card_types_to_give = Multiset(args[0]), Multiset(args[1])
             if len(card_types_to_take) != len(card_types_to_give):
                 raise ValueError
             if len(card_types_to_take) <= 1:
-                raise
+                raise IllegalPlayError("You must exchange at least two cards from your hand and/or herd.")
             # Cannot take camels this way.
             if CardType.CAMEL in card_types_to_take:
-                raise
+                raise IllegalPlayError("You cannot take camels this way.")
             # The same type of good cannot be both taken and surrendered.
             if card_types_to_take.distinct_elements() < card_types_to_give:
-                raise
+                raise IllegalPlayError("You cannot surrender and take the same type of goods.")
             # The exchange must be legal.
             if card_types_to_take > self.play_area:
-                raise
+                raise IllegalPlayError("Some of the cards you want to take are not in the market.")
             if card_types_to_give > player.hand:
-                raise
+                raise IllegalPlayError("Some of the cards you want to surrender are not in your hand and/or herd.")
             # Exchange the cards.
             self.play_area -= card_types_to_take
             self.play_area += card_types_to_give
