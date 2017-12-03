@@ -194,22 +194,22 @@ class JaipurGame:
             self.player2.hand.add(top_card)
 
     @machine.input()
-    def player1_action(self, action_type, **kwargs):
+    def player1_action(self, action_type, *args):
         "Player 1 took an action."
 
     @machine.input()
-    def player2_action(self, action_type, **kwargs):
+    def player2_action(self, action_type, *args):
         "Player 2 took an action."
 
     @machine.output()
-    def take_player1_action(self, action_type, **kwargs):
-        self.take_action('player1', action_type, **kwargs)
+    def take_player1_action(self, action_type, *args):
+        self.take_action('player1', action_type, *args)
 
     @machine.output()
-    def take_player2_action(self, action_type, **kwargs):
-        self.take_action('player2', action_type, **kwargs)
+    def take_player2_action(self, action_type, *args):
+        self.take_action('player2', action_type, *args)
 
-    def take_action(self, player_attr, action_type, **kwargs):
+    def take_action(self, player_attr, action_type, *args):
         player = getattr(self, player_attr)
         if action_type == ActionType.TAKE_CAMELS:
             num_camels = self.play_area[CardType.CAMEL]
@@ -217,6 +217,36 @@ class JaipurGame:
                 raise  # TODO: Consistent exception
             self.play_area[CardType.CAMEL] = 0
             player.hand[CardType.CAMEL] += num_camels
+        elif action_type == ActionType.TAKE_SINGLE:
+            card_type_to_take = args[0]
+            if card_type_to_take in self.play_area:
+                self.play_area[card_type_to_take] -= 1
+                player.hand[card_type_to_take] += 1
+            else:
+                raise
+        elif action_type == ActionType.TAKE_MANY:
+            card_types_to_take, card_types_to_give = Multiset(args[0]), Multiset(args[1])
+            if len(card_types_to_take) != len(card_types_to_give):
+                raise ValueError
+            if len(card_types_to_take) <= 1:
+                raise
+            # Cannot take camels this way.
+            if CardType.CAMEL in card_types_to_take:
+                raise
+            # The same type of good cannot be both taken and surrendered.
+            if card_types_to_take.distinct_elements() < card_types_to_give:
+                raise
+            # The exchange must be legal.
+            if card_types_to_take > self.play_area:
+                raise
+            if card_types_to_give > player.hand:
+                raise
+            # Exchange the cards.
+            self.play_area -= card_types_to_take
+            self.play_area += card_types_to_give
+            player.hand -= card_types_to_give
+            player.hand += card_types_to_take
+
         # Fill play area.
         while len(self.play_area) < 5:
             top_card = self.deck.pop()
