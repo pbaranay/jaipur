@@ -27,7 +27,7 @@ class Player:
     @property
     def cards_in_hand(self):
         # Camels are not technically in your hand and don't count against the hand limit.
-        return sum(self.hand.get(card_type, default=0) for card_type in CardType if card_type != CardType.CAMEL)
+        return sum(self.hand[card_type] for card_type in CardType if card_type != CardType.CAMEL)
 
     @property
     def points(self):
