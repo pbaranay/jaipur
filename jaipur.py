@@ -212,8 +212,16 @@ class JaipurGame:
     def take_action(self, player_attr, action_type, **kwargs):
         player = getattr(self, player_attr)
         if action_type == ActionType.TAKE_CAMELS:
-            self.play_area.get()
-
+            num_camels = self.play_area[CardType.CAMEL]
+            if not num_camels:
+                raise  # TODO: Consistent exception
+            self.play_area[CardType.CAMEL] = 0
+            player.hand[CardType.CAMEL] += num_camels
+        # Fill play area.
+        while len(self.play_area) < 5:
+            top_card = self.deck.pop()
+            self.play_area.add(top_card)
+            # TODO: Handle empty deck.
 
     setup.upon(start, enter=player1_turn, outputs=[setup_game])
     # TODO: check for victory/end conditions, execute action
