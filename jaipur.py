@@ -178,17 +178,29 @@ class JaipurGame:
     # by various output methods, and thus are marked private.
 
     @machine.input()
+    def start(self):
+        "The game has started."
+
+    @machine.input()
     def start_round(self):
-        pass
+        "A new round has started."
+
+    @machine.output()
+    def _setup_game(self):
+        self._complete_setup()
 
     @machine.output()
     def _setup_round(self):
-        # Initialize the play area, deck, goods tokens, and bonus tokens.
+        # Re-initialize the play area, deck, goods tokens, and bonus tokens.
         self.play_area = PlayArea()
         self.deck = StandardDeck()
         self.tokens = Tokens()
         self.bonuses = Bonuses()
 
+        self._complete_setup()
+
+    def _complete_setup(self):
+        """Encapsulates setup common to beginning the entire game and beginning a new individual round."""
         # Shuffle the deck.
         self.deck.shuffle()
 
@@ -404,7 +416,7 @@ class JaipurGame:
     def _player2_wins(self):
         "Player 2 wins the game."
 
-    _setup.upon(start_round, enter=_player_turn, outputs=[_setup_round])
+    _setup.upon(start, enter=_player_turn, outputs=[_setup_game])
     _player_turn.upon(player_action, enter=_pending_action, outputs=[take_action])
     _pending_action.upon(_action_success, enter=_between_turns, outputs=[_fill_play_area, _check_for_end_of_round])
     _pending_action.upon(_action_failure, enter=_player_turn, outputs=[])
