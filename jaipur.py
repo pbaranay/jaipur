@@ -170,6 +170,10 @@ class JaipurGame:
         "The game is in between turns."
 
     @machine.state()
+    def between_rounds(self):
+        "The game is in between rounds."
+
+    @machine.state()
     def player1_victory(self):
         "Player 1 wins!"
 
@@ -178,11 +182,17 @@ class JaipurGame:
         "Player 2 wins!"
 
     @machine.input()
-    def start(self):
+    def start_round(self):
         pass
 
     @machine.output()
-    def setup_game(self):
+    def setup_round(self):
+        # Initialize the play area, deck, goods tokens, and bonus tokens.
+        self.play_area = PlayArea()
+        self.deck = StandardDeck()
+        self.tokens = Tokens()
+        self.bonuses = Bonuses()
+
         # Shuffle the deck.
         self.deck.shuffle()
 
@@ -268,7 +278,7 @@ class JaipurGame:
             # 1) Remove cards from hand.
             player.hand[card_type_to_sell] -= quantity_to_sell
             # 2) Award goods tokens.
-            for _ in quantity_to_sell:
+            for _ in range(quantity_to_sell):
                 try:
                     player.tokens.append(self.tokens[card_type_to_sell].pop())
                 except IndexError:
@@ -285,28 +295,88 @@ class JaipurGame:
                     pass
         else:
             raise ValueError("You have chosen an unrecognized action.")
-        # Fill play area.
+
+    @machine.output()
+    def fill_play_area(self, action_type, *args):
         while len(self.play_area) < 5:
-            top_card = self.deck.pop()
-            self.play_area.add(top_card)
-            # TODO: Handle empty deck.
+            try:
+                top_card = self.deck.pop()
+            except IndexError:
+                # This signals the end of the round, which will be checked by another output.
+                break
+            else:
+                self.play_area.add(top_card)
+
+    @machine.output()
+    def toggle_current_player(self):
         # Toggle the current player.
-        if player == self.player1:
+        if self.current_player == self.player1:
             self.current_player = self.player2
-        elif player == self.player2:
+        elif self.current_player == self.player2:
             self.current_player = self.player1
+
+    @machine.output()
+    def check_for_end_of_round(self, action_type, *args):
+        if len(self.deck) == 0 or len([v for v in self.tokens.values() if len(v) >= 3]) == 0:
+            # Calculate points.
+            player1_points = sum(t.value for t in self.player1.tokens)
+            player2_points = sum(t.value for t in self.player2.tokens)
+            player1_camels = self.player1.hand[CardType.CAMEL]
+            player2_camels = self.player2.hand[CardType.CAMEL]
+            if player1_camels > player2_camels:
+                player1_points += 5
+            elif player2_camels > player1_camels:
+                player2_points += 5
+            # Award a seal. Check points, then bonus tokens, then goods tokens.
+            # Points
+            winner = None
+            if player1_points > player2_points:
+                winner = self.player1
+            elif player2_points > player1_points:
+                winner = self.player2
+            # Bonus tokens
+            if not winner:
+                player1_bonus_tokens = sum(t for t in self.player1.tokens if isinstance(t, BonusToken))
+                player2_bonus_tokens = sum(t for t in self.player2.tokens if isinstance(t, BonusToken))
+                if player1_bonus_tokens > player2_bonus_tokens:
+                    winner = self.player1
+                elif player2_bonus_tokens > player1_bonus_tokens:
+                    winner = self.player2
+            # Goods tokens
+            if not winner:
+                player1_goods_tokens = sum(t for t in self.player1.tokens if isinstance(t, Token))
+                player2_goods_tokens = sum(t for t in self.player2.tokens if isinstance(t, Token))
+                if player1_goods_tokens > player2_goods_tokens:
+                    winner = self.player1
+                elif player2_goods_tokens > player1_goods_tokens:
+                    winner = self.player2
+            if winner:
+                winner.seals += 1
+            # The loser becomes the current player.
+            if winner == self.player1:
+                self.current_player = self.player2
+            elif winner == self.player2:
+                self.current_player = self.player1
+            self.end_round()
+        else:
+            self.next_turn()
+
+    @machine.output()
+    def check_for_end_of_game(self):
+        if self.player1.seals == 2:
+            self.player1_wins()
+        elif self.player2.seals == 2:
+            self.player2_wins()
+        else:
+            self.start_round()
 
     @machine.input()
     def next_turn(self):
         "Advance to the next turn."
 
     @machine.input()
-    def player1_earns_seal(self):
-        "Player 1 wins a seal."
-
-    @machine.input()
-    def player2_earns_seal(self):
-        "Player 2 wins a seal."
+    def end_round(self):
+        "End the current round."
 
     @machine.input()
     def player1_wins(self):
@@ -316,18 +386,10 @@ class JaipurGame:
     def player2_wins(self):
         "Player 2 wins the game."
 
-    setup.upon(start, enter=player_turn, outputs=[setup_game])
-    # TODO: check for victory/end conditions, execute action
-    player_turn.upon(player_action, enter=between_turns, outputs=[take_action])
-    between_turns.upon(next_turn, enter=player_turn)
-    between_turns.upon(player1_earns_seal, enter=setup)
-    between_turns.upon(player2_earns_seal, enter=setup)
-    between_turns.upon(player1_wins, enter=player1_victory)
-    between_turns.upon(player2_wins, enter=player2_victory)
-
-    # actions
-
-    # take
-
-    # sell
-    # types
+    setup.upon(start_round, enter=player_turn, outputs=[setup_round])
+    player_turn.upon(player_action, enter=between_turns, outputs=[take_action, fill_play_area, check_for_end_of_round])
+    between_turns.upon(next_turn, enter=player_turn, outputs=[toggle_current_player])
+    between_turns.upon(end_round, enter=between_rounds, outputs=[check_for_end_of_game])
+    between_rounds.upon(start_round, enter=player_turn, outputs=[setup_round])
+    between_rounds.upon(player1_wins, enter=player1_victory, outputs=[])
+    between_rounds.upon(player2_wins, enter=player2_victory, outputs=[])
