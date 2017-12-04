@@ -153,6 +153,10 @@ class JaipurGame:
         "A player should select an action."
 
     @machine.state()
+    def pending_action(self):
+        "An action has been taken, but we're not yet sure if it was legal."
+
+    @machine.state()
     def between_turns(self):
         "The game is in between turns."
 
@@ -209,8 +213,26 @@ class JaipurGame:
     def player_action(self, action_type, *args):
         "A player took an action."
 
+    @machine.input()
+    def action_success(self):
+        "A player took a legal action."
+
+    @machine.input()
+    def action_failure(self):
+        "A player took an illegal action."
+
     @machine.output()
     def take_action(self, action_type, *args):
+        try:
+            self._execute_action(action_type, *args)
+        except (IllegalPlayError, ValueError) as ex:
+            self.action_failure()
+            raise ex
+        else:
+            self.action_success()
+
+    def _execute_action(self, action_type, *args):
+        # A private method that actually executes a chosen action.
         player = self.current_player
         if action_type == ActionType.TAKE_CAMELS:
             num_camels = self.play_area[CardType.CAMEL]
@@ -284,7 +306,7 @@ class JaipurGame:
             raise ValueError("You have chosen an unrecognized action.")
 
     @machine.output()
-    def fill_play_area(self, action_type, *args):
+    def fill_play_area(self):
         while len(self.play_area) < 5:
             try:
                 top_card = self.deck.pop()
@@ -303,7 +325,7 @@ class JaipurGame:
             self.current_player = self.player1
 
     @machine.output()
-    def check_for_end_of_round(self, action_type, *args):
+    def check_for_end_of_round(self):
         if len(self.deck) == 0 or len([v for v in self.tokens.values() if len(v) >= 3]) == 0:
             # Calculate points.
             player1_points = self.player1.points
@@ -374,7 +396,9 @@ class JaipurGame:
         "Player 2 wins the game."
 
     setup.upon(start_round, enter=player_turn, outputs=[setup_round])
-    player_turn.upon(player_action, enter=between_turns, outputs=[take_action, fill_play_area, check_for_end_of_round])
+    player_turn.upon(player_action, enter=pending_action, outputs=[take_action])
+    pending_action.upon(action_success, enter=between_turns, outputs=[fill_play_area, check_for_end_of_round])
+    pending_action.upon(action_failure, enter=player_turn, outputs=[])
     between_turns.upon(next_turn, enter=player_turn, outputs=[toggle_current_player])
     between_turns.upon(end_round, enter=between_rounds, outputs=[check_for_end_of_game])
     between_rounds.upon(start_round, enter=player_turn, outputs=[setup_round])
