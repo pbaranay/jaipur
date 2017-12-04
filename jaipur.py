@@ -306,8 +306,8 @@ class JaipurGame:
     def check_for_end_of_round(self, action_type, *args):
         if len(self.deck) == 0 or len([v for v in self.tokens.values() if len(v) >= 3]) == 0:
             # Calculate points.
-            player1_points = sum(t.value for t in self.player1.tokens)
-            player2_points = sum(t.value for t in self.player2.tokens)
+            player1_points = self.player1.points
+            player2_points = self.player2.points
             player1_camels = self.player1.hand[CardType.CAMEL]
             player2_camels = self.player2.hand[CardType.CAMEL]
             if player1_camels > player2_camels:
