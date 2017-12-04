@@ -149,6 +149,8 @@ class JaipurGame:
     tokens = attrib(default=Factory(Tokens))
     bonuses = attrib(default=Factory(Bonuses))
 
+    PRECIOUS_GOODS = [CardType.SILVER, CardType.GOLD, CardType.DIAMONDS]
+
     machine = MethodicalMachine()
 
     # def fill_play_area(self):
@@ -250,7 +252,41 @@ class JaipurGame:
             self.play_area += card_types_to_give
             player.hand -= card_types_to_give
             player.hand += card_types_to_take
-
+        elif action_type == ActionType.SELL:
+            card_type_to_sell, quantity_to_sell = args[0], args[1]
+            if card_type_to_sell == CardType.CAMEL:
+                raise IllegalPlayError("You cannot sell camels.")
+            if quantity_to_sell == 0:
+                raise IllegalPlayError("You cannot sell zero cards.")
+            num_card = player.hand[card_type_to_sell]
+            if num_card < quantity_to_sell:
+                raise IllegalPlayError("You cannot sell {} {} cards; you only have {}.".format(
+                    quantity_to_sell,
+                    card_type_to_sell,
+                    num_card))
+            if card_type_to_sell in self.PRECIOUS_GOODS and quantity_to_sell == 1:
+                raise IllegalPlayError("You cannot sell a single {}.".format(card_type_to_sell))
+            # Execute the sale in three parts.
+            # 1) Remove cards from hand.
+            player.hand[card_type_to_sell] -= quantity_to_sell
+            # 2) Award goods tokens.
+            for _ in quantity_to_sell:
+                try:
+                    player.tokens.append(self.tokens[card_type_to_sell].pop())
+                except IndexError:
+                    # Sometimes the goods tokens are all gone; the seller simply doesn't get one.
+                    pass
+            # 3) Award bonus token, if applicable.
+            bonus_quantity = min(quantity_to_sell, 5)
+            if bonus_quantity in self.bonuses:
+                try:
+                    player.tokens.append(self.bonuses[bonus_quantity].pop())
+                except IndexError:
+                    # The rulebook doesn't account for the scenario where all the bonus tokens are gone, but by
+                    # extension with the above rule we can presume that the seller simply doesn't get one.
+                    pass
+        else:
+            raise ValueError("You have chosen an unrecognized action.")
         # Fill play area.
         while len(self.play_area) < 5:
             top_card = self.deck.pop()
