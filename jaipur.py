@@ -141,6 +141,7 @@ class JaipurGame:
     current_player = attrib(default=Factory(lambda self: self.player1, takes_self=True))
 
     PRECIOUS_GOODS = [CardType.SILVER, CardType.GOLD, CardType.DIAMONDS]
+    MAX_HANDSIZE = 7
 
     machine = MethodicalMachine()
 
@@ -241,6 +242,8 @@ class JaipurGame:
             self.play_area[CardType.CAMEL] = 0
             player.hand[CardType.CAMEL] += num_camels
         elif action_type == ActionType.TAKE_SINGLE:
+            if player.cards_in_hand >= self.MAX_HANDSIZE:
+                raise IllegalPlayError("You already have {} cards in your hand.".format(self.MAX_HANDSIZE))
             card_type_to_take = args[0]
             if card_type_to_take in self.play_area:
                 self.play_area[card_type_to_take] -= 1
