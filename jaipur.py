@@ -21,7 +21,7 @@ class Player:
     # gold = attrib(default=0)
     # diamonds = attrib(default=0)
     # Game attributes
-    tokens = list()
+    tokens = attrib(default=Factory(list))
     seals = attrib(default=0)
 
     @property
