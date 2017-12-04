@@ -148,6 +148,7 @@ class JaipurGame:
     deck = attrib(default=Factory(StandardDeck))
     tokens = attrib(default=Factory(Tokens))
     bonuses = attrib(default=Factory(Bonuses))
+    current_player = attrib(default=Factory(lambda self: self.player1, takes_self=True))
 
     PRECIOUS_GOODS = [CardType.SILVER, CardType.GOLD, CardType.DIAMONDS]
 
@@ -161,12 +162,20 @@ class JaipurGame:
         "The game is being set up."
 
     @machine.state()
-    def player1_turn(self):
-        "Player 1 should select an action."
+    def player_turn(self):
+        "A player should select an action."
 
     @machine.state()
-    def player2_turn(self):
-        "Player 2 should select an action."
+    def between_turns(self):
+        "The game is in between turns."
+
+    @machine.state()
+    def player1_victory(self):
+        "Player 1 wins!"
+
+    @machine.state()
+    def player2_victory(self):
+        "Player 2 wins!"
 
     @machine.input()
     def start(self):
@@ -200,23 +209,12 @@ class JaipurGame:
             self.player2.hand.add(top_card)
 
     @machine.input()
-    def player1_action(self, action_type, *args):
-        "Player 1 took an action."
-
-    @machine.input()
-    def player2_action(self, action_type, *args):
-        "Player 2 took an action."
+    def player_action(self, action_type, *args):
+        "A player took an action."
 
     @machine.output()
-    def take_player1_action(self, action_type, *args):
-        self.take_action('player1', action_type, *args)
-
-    @machine.output()
-    def take_player2_action(self, action_type, *args):
-        self.take_action('player2', action_type, *args)
-
-    def take_action(self, player_attr, action_type, *args):
-        player = getattr(self, player_attr)
+    def take_action(self, action_type, *args):
+        player = self.current_player
         if action_type == ActionType.TAKE_CAMELS:
             num_camels = self.play_area[CardType.CAMEL]
             if not num_camels:
@@ -292,11 +290,40 @@ class JaipurGame:
             top_card = self.deck.pop()
             self.play_area.add(top_card)
             # TODO: Handle empty deck.
+        # Toggle the current player.
+        if player == self.player1:
+            self.current_player = self.player2
+        elif player == self.player2:
+            self.current_player = self.player1
 
-    setup.upon(start, enter=player1_turn, outputs=[setup_game])
+    @machine.input()
+    def next_turn(self):
+        "Advance to the next turn."
+
+    @machine.input()
+    def player1_earns_seal(self):
+        "Player 1 wins a seal."
+
+    @machine.input()
+    def player2_earns_seal(self):
+        "Player 2 wins a seal."
+
+    @machine.input()
+    def player1_wins(self):
+        "Player 1 wins the game."
+
+    @machine.input()
+    def player2_wins(self):
+        "Player 2 wins the game."
+
+    setup.upon(start, enter=player_turn, outputs=[setup_game])
     # TODO: check for victory/end conditions, execute action
-    player1_turn.upon(player1_action, enter=player2_turn, outputs=[take_player1_action])
-    player2_turn.upon(player2_action, enter=player1_turn, outputs=[take_player2_action])
+    player_turn.upon(player_action, enter=between_turns, outputs=[take_action])
+    between_turns.upon(next_turn, enter=player_turn)
+    between_turns.upon(player1_earns_seal, enter=setup)
+    between_turns.upon(player2_earns_seal, enter=setup)
+    between_turns.upon(player1_wins, enter=player1_victory)
+    between_turns.upon(player2_wins, enter=player2_victory)
 
     # actions
 
