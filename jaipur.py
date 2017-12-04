@@ -143,40 +143,46 @@ class JaipurGame:
 
     machine = MethodicalMachine()
 
+    # STATES
+
     @machine.state(initial=True)
-    def setup(self):
+    def _setup(self):
         "The game is being set up."
 
     @machine.state()
-    def player_turn(self):
+    def _player_turn(self):
         "A player should select an action."
 
     @machine.state()
-    def pending_action(self):
+    def _pending_action(self):
         "An action has been taken, but we're not yet sure if it was legal."
 
     @machine.state()
-    def between_turns(self):
+    def _between_turns(self):
         "The game is in between turns."
 
     @machine.state()
-    def between_rounds(self):
+    def _between_rounds(self):
         "The game is in between rounds."
 
     @machine.state()
-    def player1_victory(self):
+    def _player1_victory(self):
         "Player 1 wins!"
 
     @machine.state()
-    def player2_victory(self):
+    def _player2_victory(self):
         "Player 2 wins!"
+
+    # INPUTS AND OUTPUTS
+    # The only inputs that can be called directly are start_round and player_action. All other inputs are called
+    # by various output methods, and thus are marked private.
 
     @machine.input()
     def start_round(self):
         pass
 
     @machine.output()
-    def setup_round(self):
+    def _setup_round(self):
         # Initialize the play area, deck, goods tokens, and bonus tokens.
         self.play_area = PlayArea()
         self.deck = StandardDeck()
@@ -213,11 +219,13 @@ class JaipurGame:
         "A player took an action."
 
     @machine.input()
-    def action_success(self):
+    def _action_success(self):
+        # In spite of being an input, this is marked private because it's never called by the user directly.
         "A player took a legal action."
 
     @machine.input()
-    def action_failure(self):
+    def _action_failure(self):
+        # In spite of being an input, this is marked private because it's never called by the user directly.
         "A player took an illegal action."
 
     @machine.output()
@@ -225,10 +233,10 @@ class JaipurGame:
         try:
             self._execute_action(action_type, *args)
         except (IllegalPlayError, ValueError) as ex:
-            self.action_failure()
+            self._action_failure()
             raise ex
         else:
-            self.action_success()
+            self._action_success()
 
     def _execute_action(self, action_type, *args):
         # A private method that actually executes a chosen action.
@@ -307,7 +315,7 @@ class JaipurGame:
             raise ValueError("You have chosen an unrecognized action.")
 
     @machine.output()
-    def fill_play_area(self):
+    def _fill_play_area(self):
         while len(self.play_area) < 5:
             try:
                 top_card = self.deck.pop()
@@ -318,7 +326,7 @@ class JaipurGame:
                 self.play_area.add(top_card)
 
     @machine.output()
-    def toggle_current_player(self):
+    def _toggle_current_player(self):
         # Toggle the current player.
         if self.current_player == self.player1:
             self.current_player = self.player2
@@ -326,7 +334,7 @@ class JaipurGame:
             self.current_player = self.player1
 
     @machine.output()
-    def check_for_end_of_round(self):
+    def _check_for_end_of_round(self):
         if len(self.deck) == 0 or len([v for v in self.tokens.values() if len(v) >= 3]) == 0:
             # Calculate points.
             player1_points = self.player1.points
@@ -367,41 +375,41 @@ class JaipurGame:
                 self.current_player = self.player2
             elif winner == self.player2:
                 self.current_player = self.player1
-            self.end_round()
+            self._end_round()
         else:
-            self.next_turn()
+            self._next_turn()
 
     @machine.output()
-    def check_for_end_of_game(self):
+    def _check_for_end_of_game(self):
         if self.player1.seals == 2:
-            self.player1_wins()
+            self._player1_wins()
         elif self.player2.seals == 2:
-            self.player2_wins()
+            self._player2_wins()
         else:
             self.start_round()
 
     @machine.input()
-    def next_turn(self):
+    def _next_turn(self):
         "Advance to the next turn."
 
     @machine.input()
-    def end_round(self):
+    def _end_round(self):
         "End the current round."
 
     @machine.input()
-    def player1_wins(self):
+    def _player1_wins(self):
         "Player 1 wins the game."
 
     @machine.input()
-    def player2_wins(self):
+    def _player2_wins(self):
         "Player 2 wins the game."
 
-    setup.upon(start_round, enter=player_turn, outputs=[setup_round])
-    player_turn.upon(player_action, enter=pending_action, outputs=[take_action])
-    pending_action.upon(action_success, enter=between_turns, outputs=[fill_play_area, check_for_end_of_round])
-    pending_action.upon(action_failure, enter=player_turn, outputs=[])
-    between_turns.upon(next_turn, enter=player_turn, outputs=[toggle_current_player])
-    between_turns.upon(end_round, enter=between_rounds, outputs=[check_for_end_of_game])
-    between_rounds.upon(start_round, enter=player_turn, outputs=[setup_round])
-    between_rounds.upon(player1_wins, enter=player1_victory, outputs=[])
-    between_rounds.upon(player2_wins, enter=player2_victory, outputs=[])
+    _setup.upon(start_round, enter=_player_turn, outputs=[_setup_round])
+    _player_turn.upon(player_action, enter=_pending_action, outputs=[take_action])
+    _pending_action.upon(_action_success, enter=_between_turns, outputs=[_fill_play_area, _check_for_end_of_round])
+    _pending_action.upon(_action_failure, enter=_player_turn, outputs=[])
+    _between_turns.upon(_next_turn, enter=_player_turn, outputs=[_toggle_current_player])
+    _between_turns.upon(_end_round, enter=_between_rounds, outputs=[_check_for_end_of_game])
+    _between_rounds.upon(start_round, enter=_player_turn, outputs=[_setup_round])
+    _between_rounds.upon(_player1_wins, enter=_player1_victory, outputs=[])
+    _between_rounds.upon(_player2_wins, enter=_player2_victory, outputs=[])
