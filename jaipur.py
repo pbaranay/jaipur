@@ -6,9 +6,7 @@ from automat import MethodicalMachine
 from multiset import Multiset
 
 
-# slots=True throughout?
-
-@attrs
+@attrs(slots=True)
 class Player:
     name = attrib()
     hand = attrib(default=Factory(Multiset))
@@ -64,7 +62,7 @@ class Tokens(dict):
         super().__init__(iterable)
 
 
-@attrs(frozen=True)
+@attrs(frozen=True, slots=True)
 class BonusToken:
     bonus_type = attrib(validator=validators.in_([3,4,5]))
     value = attrib(default=1)
@@ -130,7 +128,7 @@ class IllegalPlayError(Exception):
     """A player tried to take an illegal action."""
 
 
-@attrs
+@attrs()
 class JaipurGame:
     player1 = attrib(default=Factory(lambda: Player(name='Player 1')))
     player2 = attrib(default=Factory(lambda: Player(name='Player 2')))
