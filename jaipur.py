@@ -10,17 +10,8 @@ from multiset import Multiset
 
 @attrs
 class Player:
-    # Player attributes
     name = attrib()
-    # Hand attributes
     hand = attrib(default=Factory(Multiset))
-    # leather = attrib(default=0)
-    # spices = attrib(default=0)
-    # cloth = attrib(default=0)
-    # silver = attrib(default=0)
-    # gold = attrib(default=0)
-    # diamonds = attrib(default=0)
-    # Game attributes
     tokens = attrib(default=Factory(list))
     seals = attrib(default=0)
 
@@ -31,7 +22,6 @@ class Player:
 
     @property
     def points(self):
-        # TODO: figure out if you can see your own bonus tokens
         return sum([t.value for t in self.tokens])
 
 
@@ -153,9 +143,6 @@ class JaipurGame:
     PRECIOUS_GOODS = [CardType.SILVER, CardType.GOLD, CardType.DIAMONDS]
 
     machine = MethodicalMachine()
-
-    # def fill_play_area(self):
-    #     pass
 
     @machine.state(initial=True)
     def setup(self):
