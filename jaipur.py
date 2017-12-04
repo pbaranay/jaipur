@@ -25,7 +25,6 @@ class Player:
         return sum([t.value for t in self.tokens])
 
 
-# TODO: better __repr__?
 class CardType(enum.Enum):
     CAMEL = "Camel"
     LEATHER = "Leather"
@@ -34,6 +33,9 @@ class CardType(enum.Enum):
     SILVER = "Silver"
     GOLD = "Gold"
     DIAMONDS = "Diamonds"
+
+    def __str__(self):
+        return self.value
 
 
 # frozen=True
