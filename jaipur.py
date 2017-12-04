@@ -38,8 +38,7 @@ class CardType(enum.Enum):
         return self.value
 
 
-# frozen=True
-@attrs
+@attrs(frozen=True)
 class Token:
     type = attrib(validator=validators.in_(CardType))
     value = attrib(default=1)
@@ -65,8 +64,7 @@ class Tokens(dict):
         super().__init__(iterable)
 
 
-# frozen=True
-@attrs
+@attrs(frozen=True)
 class BonusToken:
     bonus_type = attrib(validator=validators.in_([3,4,5]))
     value = attrib(default=1)
